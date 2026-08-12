@@ -1,4 +1,5 @@
-img {
-  max-width: 100%;
-  height: auto;
+.container {
+    max-width: 800px;
+    width: 100%;
+    margin: 0 auto; /* 화면 중앙에 오도록 정렬 */
 }
