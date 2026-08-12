@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소피와 비밀의 냉장고 - 웹 동화책</title>
+    <style>
+        :root {
+            --book-width: 980px;          
+            --book-height: 640px;         
+            --bg-color: #f7f3e9;          
+            --page-bg: #fffdf7;          
+            --text-color: #333333;        
+            --primary-color: #e87b7b;     
+            --accent-yellow: #ffdf91;     
+            --shadow-color: rgba(0,0,0,0.15);
+            --overlay-bg: rgba(255, 255, 255, 0.88); 
+            --font-main: 'Nanum Gothic', 'Noto Sans KR', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: var(--font-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 20px 0;
+        }
+        /* 표지일 때 상단 로고 및 하단 버튼 숨김 */
+        body.is-cover .header-title,
+        body.is-cover .controls {
+            display: none !important;
+        }
+        .header-title {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-logo {
+            max-height: 80px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .book-container {
+            width: var(--book-width);
+            height: var(--book-height);
+            perspective: 2000px;
+            position: relative;
+        }
+
+        .book {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            box-shadow: 0 15px 35px var(--shadow-color);
+            border-radius: 12px;
+        }
+
+        /* 펼침면 기본 설정 (애니메이션 없는 즉시 전환) */
+        .spread {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: none;
+            background-color: var(--page-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #eae0d0;
+        }
+
+        .spread.active {
+            display: flex;
+            z-index: 2;
+        }
+
+        .spread::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 30px;
+            height: 100%;
+            transform: translateX(-50%);
+            background: linear-gradient(to right, rgba(0,0,0,0.1), rgba(0,0,0,0), rgba(0,0,0,0.1));
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* 표지 전용 펼침면 스타일 (중앙 구분선 그림자 제거) */
+        .spread.cover-spread::after {
+            display: none;
+        }
+
+        .cover-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #F3C944; /* 표지 배경 노란색과 맞춤 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .cover-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 화면을 여백 없이 꽉 채움 */
+            display: block;
+        }
+
+        /* 냉장고 클릭 핫스팟 (투명 버튼) */
+        .fridge-hotspot {
+            position: absolute;
+            left: 45%;
+            top: 48%;
+            width: 28%;
+            height: 45%;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 20;
+            outline: none;
+            border-radius: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .fridge-hotspot:hover {
+            transform: scale(1.02);
+        }
+
+        /* 안내 툴팁 */
+        .click-guide {
+            position: absolute;
+            top: -38px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffffff;
+            font-size: 0.85rem;
+            font-weight: bold;
+            padding: 6px 14px;
+            border-radius: 20px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .fridge-hotspot:hover .click-guide {
+            opacity: 1;
+        }
+
+        .page {
+            width: 50%;
+            height: 100%;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            padding: 25px;
+        }
+
+        .page-left {
+            border-right: 1px solid #f0e6d2;
+        }
+
+        .page-bg-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f3edd9;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .text-overlay {
+            position: relative;
+            z-index: 5;
+            background: var(--overlay-bg);
+            backdrop-filter: blur(4px);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            word-break: keep-all;
+        }
+
+        .text-overlay h3 {
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+
+        .text-overlay p {
+            font-size: 0.95rem;
+            line-height: 1.65;
+            color: var(--text-color);
+        }
+
+        .game-btn-box {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .game-btn {
+            padding: 10px 22px;
+            background: linear-gradient(135deg, #ff7676, #ff9e9e);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(255, 118, 118, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .game-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(255, 118, 118, 0.4);
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 12px;
+            z-index: 5;
+            font-size: 0.85rem;
+            color: #777;
+            background: rgba(255,255,255,0.7);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .page-left .page-number { left: 15px; }
+        .page-right .page-number { right: 15px; }
+
+        .door-game-box {
+            position: relative;
+            z-index: 5;
+            margin-top: auto;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid var(--accent-yellow);
+        }
+
+        .push-btn {
+            padding: 10px 20px;
+            background: #ff7676;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transition: transform 0.1s;
+        }
+
+        .push-btn:active {
+            transform: scale(0.95);
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 16px;
+            background: #eee;
+            border-radius: 8px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #ffdf91, #ff7676);
+            transition: width 0.2s ease;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 10px 22px;
+            background-color: var(--accent-yellow);
+            color: var(--text-color);
+            border: 2px solid #e0c878;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 6px var(--shadow-color);
+        }
+
+        .btn:hover {
+            background-color: #fce5d4;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .page-num-indicator {
+            font-weight: bold;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 상단 로고 이미지 영역 -->
+    <div class="header-title">
+        <img src="images/mylogo.png" alt="소피와 비밀의 냉장고 로고" class="header-logo">
+    </div>
+
+    <div class="book-container">
+        <div class="book" id="book">
+
+            <!-- [0번 펼침면] 표지 -->
+            <div class="spread active cover-spread">
+                <div class="cover-wrapper">
+                    <!-- 표지 초안 이미지 연결 -->
+                    <img src="images/표지.png" alt="소피와 비밀의 냉장고 표지" class="cover-image">
+                    
+                    <!-- 냉장고 클릭 영역 (누르면 1번 펼침면으로 이동) -->
+                    <button type="button" class="fridge-hotspot" onclick="changeSpread(1)" title="첫 페이지 열기">
+                        <span class="click-guide">✨ 냉장고를 눌러보세요!</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- [1번 펼침면] (p.1 / p.2) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/P1.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.1 편식하는 소피</h3>
+                        <p>저녁 식탁 시간, 소피가 접시 위 야채를 숟가락으로 하나씩 골라내며 중얼거려요.<br><br>
+                        "당근 싫어! 완두콩 싫어! 피망은 제일 싫어!"<br>
+                        소피는 골라낸 야채들을 들고 냉장고 문을 덜컥 열었어요.</p>
+                    </div>
+                    <span class="page-number">p.1</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/P2.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.2 이상한 목소리</h3>
+                        <p>그런데 문을 연 순간— 어라? 냉장고 안이 이상해요!<br><br>
+                        불빛이 평소보다 노랗고 따뜻하게 반짝이더니, 안쪽에서 아주 작고 가느다란 목소리가 들려왔어요.<br><br>
+                        "…싫어? 방금 우리 보고 싫다고 한 거야?"</p>
+                    </div>
+                    <span class="page-number">p.2</span>
+                </div>
+            </div>
+
+            <!-- [2번 펼침면] (p.3 / p.4) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/P3.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.3 바람이 훅—</h3>
+                        <p>소피가 고개를 갸웃하며 냉장고 안을 깊숙이 들여다보았어요.<br><br>
+                        그때, 야채칸이 스르륵 열리더니 따뜻하고 고소한 바람이 훅— 불어왔지요.<br>
+                        소피의 머리카락이 냉장고 안쪽으로 휘날리기 시작했어요!</p>
+                    </div>
+                    <span class="page-number">p.3</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/P4.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.4 빨려 들어가는 순간!</h3>
+                        <p>"앗!"<br>
+                        손에 들고 있던 당근이 바람을 타고 쑤욱— 들어가 버렸어요. 당근을 잡으려던 소피도 함께 스르륵 쑤욱—!<br><br>
+                        "싫다고 말한 사람은, 직접 만나보고 다시 말해야 하는 법이야!"</p>
+                    </div>
+                    <span class="page-number">p.4</span>
+                </div>
+            </div>
+
+            <!-- [3번 펼침면] (p.5 / p.6) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/P5.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.5 냉장고 나라 마을</h3>
+                        <p>털썩! 소피가 떨어진 곳은 차가운 얼음 나라가 아니었어요.<br><br>
+                        파스텔빛 언덕이 둥글둥글 이어지고, 하늘에는 밥알 구름이 두둥실 떠다니는 말랑말랑한 마을이었지요.<br>
+                        반찬통 모양의 집들과 알록달록한 뚜껑 지붕 사이로 고소한 냄새가 폴폴 났답니다.</p>
+                    </div>
+                    <span class="page-number">p.5</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/P6.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.6 텅 빈 여덟 접시</h3>
+                        <p>마을 한가운데 커다란 식탁 광장에 도착했어요.<br><br>
+                        하지만 광장 한가운데에는 텅 비어 있는 여덟 개의 접시가 덩그러니 놓여 있었지요.</p>
+                    </div>
+                    <span class="page-number">p.6</span>
+                </div>
+            </div>
+
+            <!-- [4번 펼침면] (p.7 / p.8 - 캐롯핑 ①) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/P7.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.7 캐롯핑의 부탁</h3>
+                        <p>훌쩍이는 소리와 함께 작은 당근 요정, 캐롯핑이 다가와 소피에게 소곤거렸어요.<br><br>
+                        "여덟 접시가 다 채워져야 마을 문이 열려. 하지만 우릴 맛있게 먹어줄 사람이 없어서 요리를 못 만들었어…"<br><br>
+                        소피의 눈앞에 여덟 개의 빈 접시가 나타났어요.<br>
+                        "좋아! 내가 접시를 모두 채워서 집으로 돌아갈게!"</p>
+                    </div>
+                    <span class="page-number">p.7</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/P8.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.8 [1번째 접시] 눈물 국물집 — 캐롯핑 ①</h3>
+                        <p>"미안한데… 나 너 싫어해. 딱딱하고 맛없잖아." (캐롯핑 시무룩 💦)</p>
+                        <div class="game-btn-box">
+                            <button class="game-btn" onclick="openGame('캐롯핑')">🎮 게임시작!</button>
+                        </div>
+                    </div>
+                    <span class="page-number">p.8</span>
+                </div>
+            </div>
+
+            <!-- [5번 펼침면] (p.9 - 캐롯핑 ② / p.10 - 캐롯핑 ③) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/P9.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.9 [1번째 접시] 눈물 국물집 — 캐롯핑 ②</h3>
+                        <p>"그럼 이건 어때?" 캐롯핑이 엉엉 울며 보글보글 끓여내자, 눈물이 들어가 더 달콤하고 따뜻한 <strong>'당근 수프'</strong> 완성!</p>
+                    </div>
+                    <span class="page-number">p.9</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/P10.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.10 [1번째 접시] 눈물 국물집 — 캐롯핑 ③</h3>
+                        <p>"어? 진짜 맛있겠다!" 💡 첫 번째 접시 불빛 완료! 캐롯핑이 소피 어깨 위로 폴짝!</p>
+                    </div>
+                    <span class="page-number">p.10</span>
+                </div>
+            </div>
+
+            <!-- [6번 펼침면] (p.11 - 콩콩핑 ① / p.12 - 콩콩핑 ②) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p11.jpg');">
+                    <div class="page-bg-placeholder">[p.11 콩콩핑 ①]</div>
+                    <div class="text-overlay">
+                        <h3>p.11 [2번째 접시] 데굴데굴 놀이터 — 콩콩핑 ①</h3>
+                        <p>동글동글 콩콩핑 삼형제가 콩콩 뛰고 있어요.</p>
+                    </div>
+                    <span class="page-number">p.11</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p12.jpg');">
+                    <div class="page-bg-placeholder">[p.12 콩콩핑 ②]</div>
+                    <div class="text-overlay">
+                        <h3>p.12 [2번째 접시] 데굴데굴 놀이터 — 콩콩핑 ②</h3>
+                        <p>"미안한데… 나 너희 싫어해. 작고 미끌거리잖아." (삼형제 시무룩 💦)</p>
+                        <div class="game-btn-box">
+                            <button class="game-btn" onclick="openGame('콩콩핑')">🎮 게임시작!</button>
+                        </div>
+                    </div>
+                    <span class="page-number">p.12</span>
+                </div>
+            </div>
+
+            <!-- [7번 펼침면] (p.13 - 콩콩핑 ③ / p.14 - 콩콩핑 ④) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p13.jpg');">
+                    <div class="page-bg-placeholder">[p.13 콩콩핑 ③]</div>
+                    <div class="text-overlay">
+                        <h3>p.13 [2번째 접시] 데굴데굴 놀이터 — 콩콩핑 ③</h3>
+                        <p>"그럼 이건 어때?" 신나게 데굴데굴 굴러가더니 하얀 밥뭉치 위에 콕! 콕! 콕! <strong>'완두콩 주먹밥'</strong>!</p>
+                    </div>
+                    <span class="page-number">p.13</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p14.jpg');">
+                    <div class="page-bg-placeholder">[p.14 콩콩핑 ④]</div>
+                    <div class="text-overlay">
+                        <h3>p.14 [2번째 접시] 데굴데굴 놀이터 — 콩콩핑 ④</h3>
+                        <p>"어? 진짜 귀엽고 맛있겠다!" 💡 두 번째 접시 불빛 완료! 머리 위로 폴짝!</p>
+                    </div>
+                    <span class="page-number">p.14</span>
+                </div>
+            </div>
+
+            <!-- [8번 펼침면] (p.15 - 버섯몽 ① / p.16 - 버섯몽 ②) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p15.jpg');">
+                    <div class="page-bg-placeholder">[p.15 버섯몽 ①]</div>
+                    <div class="text-overlay">
+                        <h3>p.15 [3번째 접시] 뽀글뽀글 미용실 — 버섯몽 ①</h3>
+                        <p>빨간 점박이 모자를 쓴 버섯몽이 기다려요.</p>
+                    </div>
+                    <span class="page-number">p.15</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p16.jpg');">
+                    <div class="page-bg-placeholder">[p.16 버섯몽 ②]</div>
+                    <div class="text-overlay">
+                        <h3>p.16 [3번째 접시] 뽀글뽀글 미용실 — 버섯몽 ②</h3>
+                        <p>"미안한데… 나 너 싫어해. 물컹물컹하잖아." (버섯몽 시무룩 💦)</p>
+                        <div class="game-btn-box">
+                            <button class="game-btn" onclick="openGame('버섯몽')">🎮 게임시작!</button>
+                        </div>
+                    </div>
+                    <span class="page-number">p.16</span>
+                </div>
+            </div>
+
+            <!-- [9번 펼침면] (p.17 - 버섯몽 ③ / p.18 - 버섯몽 ④) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p17.jpg');">
+                    <div class="page-bg-placeholder">[p.17 버섯몽 ③]</div>
+                    <div class="text-overlay">
+                        <h3>p.17 [3번째 접시] 뽀글뽀글 미용실 — 버섯몽 ③</h3>
+                        <p>"그럼 이건 어때?" 미용실 의자에서 따끈한 노란 치즈를 머리에 돌돌 감아 뽀글뽀글 파마한 <strong>'버섯 치즈 구이'</strong>!</p>
+                    </div>
+                    <span class="page-number">p.17</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p18.jpg');">
+                    <div class="page-bg-placeholder">[p.18 버섯몽 ④]</div>
+                    <div class="text-overlay">
+                        <h3>p.18 [3번째 접시] 뽀글뽀글 미용실 — 버섯몽 ④</h3>
+                        <p>"어? 진짜 고소하고 맛있겠다!" 💡 세 번째 접시 불빛 완료!</p>
+                    </div>
+                    <span class="page-number">p.18</span>
+                </div>
+            </div>
+
+            <!-- [10번 펼침면] (p.19 - 구름핑 ① / p.20 - 구름핑 ②) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p19.jpg');">
+                    <div class="page-bg-placeholder">[p.19 구름핑 ①]</div>
+                    <div class="text-overlay">
+                        <h3>p.19 [4번째 접시] 노른자 온천 — 구름핑 ①</h3>
+                        <p>노란 온천물 한가운데에서 폭신한 구름핑이 짠!</p>
+                    </div>
+                    <span class="page-number">p.19</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p20.jpg');">
+                    <div class="page-bg-placeholder">[p.20 구름핑 ②]</div>
+                    <div class="text-overlay">
+                        <h3>p.20 [4번째 접시] 노른자 온천 — 구름핑 ②</h3>
+                        <p>"미안한데… 나 너 싫어해. 부드럽기만 하잖아." (구름핑 시무룩 💦)</p>
+                        <div class="game-btn-box">
+                            <button class="game-btn" onclick="openGame('구름핑')">🎮 게임시작!</button>
+                        </div>
+                    </div>
+                    <span class="page-number">p.20</span>
+                </div>
+            </div>
+
+            <!-- [11번 펼침면] (p.21 - 구름핑 ③ / p.22 - 구름핑 ④) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p21.jpg');">
+                    <div class="page-bg-placeholder">[p.21 구름핑 ③]</div>
+                    <div class="text-overlay">
+                        <h3>p.21 [4번째 접시] 노른자 온천 — 구름핑 ③</h3>
+                        <p>"그럼 이건 어때?" 노란 튜브를 타고 온천을 뱅글뱅글! 돌아서 만든 폭신폭신 <strong>'달걀말이'</strong>!</p>
+                    </div>
+                    <span class="page-number">p.21</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p22.jpg');">
+                    <div class="page-bg-placeholder">[p.22 구름핑 ④]</div>
+                    <div class="text-overlay">
+                        <h3>p.22 [4번째 접시] 노른자 온천 — 구름핑 ④</h3>
+                        <p>"어? 진짜 포근하고 맛있겠다!" 💡 네 번째 접시 불빛 완료!</p>
+                    </div>
+                    <span class="page-number">p.22</span>
+                </div>
+            </div>
+
+            <!-- [12번 펼침면] (p.23 - 매콤핑 ① / p.24 - 매콤핑 ②) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p23.jpg');">
+                    <div class="page-bg-placeholder">[p.23 매콤핑 ①]</div>
+                    <div class="text-overlay">
+                        <h3>p.23 [5번째 접시] 불꽃 사우나 — 매콤핑 ①</h3>
+                        <p>붉은 고추 모습을 한 매콤핑이 나타났어요.</p>
+                    </div>
+                    <span class="page-number">p.23</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p24.jpg');">
+                    <div class="page-bg-placeholder">[p.24 매콤핑 ②]</div>
+                    <div class="text-overlay">
+                        <h3>p.24 [5번째 접시] 불꽃 사우나 — 매콤핑 ②</h3>
+                        <p>"미안한데… 나 너 싫어해. 맵고 얼얼하잖아!" (매콤핑 시무룩 💦)</p>
+                        <div class="game-btn-box">
+                            <button class="game-btn" onclick="openGame('매콤핑')">🎮 게임시작!</button>
+                        </div>
+                    </div>
+                    <span class="page-number">p.24</span>
+                </div>
+            </div>
+
+            <!-- [13번 펼침면] (p.25 - 매콤핑 ③ / p.26 - 매콤핑 ④) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p25.jpg');">
+                    <div class="text-overlay">
+                        <h3>p.25 [5번째 접시] 불꽃 사우나 — 매콤핑 ③</h3>
+                        <p>"그럼 이건 어때?" 엉덩이에 불꽃이 붙어 프라이팬 위를 우당탕탕 뛰어다니며 볶아낸 <strong>'김치 볶음밥'</strong>!</p>
+                    </div>
+                    <span class="page-number">p.25</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p26.jpg');">
+                    <div class="page-bg-placeholder">[p.26 매콤핑 ④]</div>
+                    <div class="text-overlay">
+                        <h3>p.26 [5번째 접시] 불꽃 사우나 — 매콤핑 ④</h3>
+                        <p>"어? 진짜 신나고 맛있겠다!" 💡 다섯 번째 접시 불빛 완료!</p>
+                    </div>
+                    <span class="page-number">p.26</span>
+                </div>
+            </div>
+
+            <!-- [14번 펼침면] (p.27 - 피망핑 ① / p.28 - 피망핑 ②) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p27.jpg');">
+                    <div class="page-bg-placeholder">[p.27 피망핑 ①]</div>
+                    <div class="text-overlay">
+                        <h3>p.27 [6번째 접시] UFO 정거장 — 피망핑 ①</h3>
+                        <p>UFO 우주선 모양의 피망핑이 등장!</p>
+                    </div>
+                    <span class="page-number">p.27</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p28.jpg');">
+                    <div class="page-bg-placeholder">[p.28 피망핑 ②]</div>
+                    <div class="text-overlay">
+                        <h3>p.28 [6번째 접시] UFO 정거장 — 피망핑 ②</h3>
+                        <p>"미안한데… 나 너 싫어해. 냄새도 이상하잖아." (피망핑 시무룩 💦)</p>
+                        <div class="game-btn-box">
+                            <button class="game-btn" onclick="openGame('피망핑')">🎮 게임시작!</button>
+                        </div>
+                    </div>
+                    <span class="page-number">p.28</span>
+                </div>
+            </div>
+
+            <!-- [15번 펼침면] (p.29 - 피망핑 ③ / p.30 - 피망핑 ④) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p29.jpg');">
+                    <div class="page-bg-placeholder">[p.29 피망핑 ③]</div>
+                    <div class="text-overlay">
+                        <h3>p.29 [6번째 접시] UFO 정거장 — 피망핑 ③</h3>
+                        <p>"그럼 이건 어때?" 마법 레이저로 몸을 링 모양으로 샥샥 썰어낸 알록달록 <strong>'피망 볶음'</strong>!</p>
+                    </div>
+                    <span class="page-number">p.29</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p30.jpg');">
+                    <div class="page-bg-placeholder">[p.30 피망핑 ④]</div>
+                    <div class="text-overlay">
+                        <h3>p.30 [6번째 접시] UFO 정거장 — 피망핑 ④</h3>
+                        <p>"어? 진짜 멋지고 맛있겠다!" 💡 여섯 번째 접시 불빛 완료!</p>
+                    </div>
+                    <span class="page-number">p.30</span>
+                </div>
+            </div>
+
+            <!-- [16번 펼침면] (p.31 - 밀키핑 ① / p.32 - 밀키핑 ②) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p31.jpg');">
+                    <div class="page-bg-placeholder">[p.31 밀키핑 ①]</div>
+                    <div class="text-overlay">
+                        <h3>p.31 [7번째 접시] 거품 목욕탕 — 밀키핑 ①</h3>
+                        <p>하얀 우유 방울 밀키핑이 기다려요.</p>
+                    </div>
+                    <span class="page-number">p.31</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p32.jpg');">
+                    <div class="page-bg-placeholder">[p.32 밀키핑 ②]</div>
+                    <div class="text-overlay">
+                        <h3>p.32 [7번째 접시] 거품 목욕탕 — 밀키핑 ②</h3>
+                        <p>"미안한데… 나 너 싫어해. 밋밋하고 아무 맛도 안 나잖아." (밀키핑 시무룩 💦)</p>
+                        <div class="game-btn-box">
+                            <button class="game-btn" onclick="openGame('밀키핑')">🎮 게임시작!</button>
+                        </div>
+                    </div>
+                    <span class="page-number">p.32</span>
+                </div>
+            </div>
+
+            <!-- [17번 펼침면] (p.33 - 밀키핑 ③ / p.34 - 밀키핑 ④) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p33.jpg');">
+                    <div class="page-bg-placeholder">[p.33 밀키핑 ③]</div>
+                    <div class="text-overlay">
+                        <h3>p.33 [7번째 접시] 거품 목욕탕 — 밀키핑 ③</h3>
+                        <p>"그럼 이건 어때?" 인중에 몽글몽글 거품 수염을 달고 나와 올린 탱글한 <strong>'우유 푸딩'</strong>!</p>
+                    </div>
+                    <span class="page-number">p.33</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p34.jpg');">
+                    <div class="page-bg-placeholder">[p.34 밀키핑 ④]</div>
+                    <div class="text-overlay">
+                        <h3>p.34 [7번째 접시] 거품 목욕탕 — 밀키핑 ④</h3>
+                        <p>"어? 진짜 말랑말랑 맛있겠다!" 💡 일곱 번째 접시 불빛 완료!</p>
+                    </div>
+                    <span class="page-number">p.34</span>
+                </div>
+            </div>
+
+            <!-- [18번 펼침면] (p.35 - 가짓핑 ① / p.36 - 가짓핑 ②) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p35.jpg');">
+                    <div class="page-bg-placeholder">[p.35 가짓핑 ①]</div>
+                    <div class="text-overlay">
+                        <h3>p.35 [8번째 접시] 가지 단련장 — 가짓핑 ①</h3>
+                        <p>보랏빛 가짓핑이 기합을 넣고 있어요.</p>
+                    </div>
+                    <span class="page-number">p.35</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p36.jpg');">
+                    <div class="page-bg-placeholder">[p.36 가짓핑 ②]</div>
+                    <div class="text-overlay">
+                        <h3>p.36 [8번째 접시] 가지 단련장 — 가짓핑 ②</h3>
+                        <p>"미안한데… 나 너 정말 싫어해. 흐물흐물하고 색깔도 이상해!" (가짓핑 시무룩 💦)</p>
+                        <div class="game-btn-box">
+                            <button class="game-btn" onclick="openGame('가짓핑')">🎮 게임시작!</button>
+                        </div>
+                    </div>
+                    <span class="page-number">p.36</span>
+                </div>
+            </div>
+
+            <!-- [19번 펼침면] (p.37 - 가짓핑 ③ / p.38 - 가짓핑 ④) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p37.jpg');">
+                    <div class="page-bg-placeholder">[p.37 가짓핑 ③]</div>
+                    <div class="text-overlay">
+                        <h3>p.37 [8번째 접시] 가지 단련장 — 가짓핑 ③</h3>
+                        <p>"그럼 이건 어때? 마지막 요리다!" 얍! 얍! 다짐육과 함께 고소하게 볶아낸 <strong>'가지 다짐육 덮밥'</strong>!</p>
+                    </div>
+                    <span class="page-number">p.37</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p38.jpg');">
+                    <div class="page-bg-placeholder">[p.38 가짓핑 ④]</div>
+                    <div class="text-overlay">
+                        <h3>p.38 [8번째 접시] 가지 단련장 — 가짓핑 ④</h3>
+                        <p>"어? 진짜 고소하고 맛있겠다!" 💡 마침내 8개 접시 완성!</p>
+                    </div>
+                    <span class="page-number">p.38</span>
+                </div>
+            </div>
+
+            <!-- [20번 펼침면] (p.39 - 무지갯빛 문 / p.40 - 문 밀기 게임) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p39.jpg');">
+                    <div class="page-bg-placeholder">[p.39 무지갯빛 문 일러스트]</div>
+                    <div class="text-overlay">
+                        <h3>p.39 무지갯빛 문 등장</h3>
+                        <p>여덟 개의 접시가 모두 눈부시게 반짝이자, 광장 한가운데 거대한 무지갯빛 문이 스르륵 나타났어요.<br><br>
+                        "와, 문이다! 하지만 너무 커서 혼자서는 열 수가 없어!"</p>
+                    </div>
+                    <span class="page-number">p.39</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p40.jpg');">
+                    <div class="page-bg-placeholder">[p.40 다 같이 문 밀기 일러스트]</div>
+                    <div class="text-overlay">
+                        <h3>p.40 다 같이 문을 밀자!</h3>
+                        <p>"우리가 도와줄게! 다 같이 밀자!"<br>
+                        여덟 마리 요정 응원단이 우르르 달려와 문에 딱 붙었어요. 하나, 둘, 셋! 영차!</p>
+                    </div>
+
+                    <div class="door-game-box">
+                        <p style="font-size:0.85rem; font-weight:bold; margin-bottom:5px;">👇 버튼을 연속으로 눌러 문을 열어주세요!</p>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="doorProgress"></div>
+                        </div>
+                        <button class="push-btn" onclick="pushDoor()">문 힘껏 밀기! 🚪</button>
+                    </div>
+                    <span class="page-number">p.40 (터치)</span>
+                </div>
+            </div>
+
+            <!-- [21번 펼침면] (p.41 - 돌아온 식탁 / p.42 - 다 내 친구거든요!) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p41.jpg');">
+                    <div class="page-bg-placeholder">[p.41 맛있는 저녁 식탁 일러스트]</div>
+                    <div class="text-overlay">
+                        <h3>p.41 다시 돌아온 식탁</h3>
+                        <p>눈부신 빛이 쏟아지고— 눈을 떠보니 소피는 다시 우리 집 식탁 앞이에요.<br><br>
+                        식탁 위에는 당근 수프, 완두콩 주먹밥, 버섯 치즈 구이, 달걀말이, 김치 볶음밥, 피망 볶음, 우유 푸딩, 가지 덮밥이 맛깔스럽게 놓여 있었죠.<br><br>
+                        엄마가 다정하게 물으셨어요.<br>
+                        "소피야, 오늘은 뭐부터 먹어볼래?"</p>
+                    </div>
+                    <span class="page-number">p.41</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p42.jpg');">
+                    <div class="page-bg-placeholder">[p.42 소피의 활짝 웃는 얼굴 일러스트]</div>
+                    <div class="text-overlay">
+                        <h3>p.42 다요! 다 내 친구거든요!</h3>
+                        <p>소피가 잠시 고민하더니 활짝 웃으며 외쳤어요.<br><br>
+                        <strong>"다요! 얘네들 다 이제 제 친구거든요!"</strong></p>
+                    </div>
+                    <span class="page-number">p.42</span>
+                </div>
+            </div>
+
+            <!-- [22번 펼침면] (p.43 - 하이파이브 / p.44 - 뒷표지) -->
+            <div class="spread">
+                <div class="page page-left" style="background-image: url('images/p43.jpg');">
+                    <div class="page-bg-placeholder">[p.43 냉장고 핑들과 하이파이브 일러스트]</div>
+                    <div class="text-overlay">
+                        <h3>p.43 핑들과의 하이파이브!</h3>
+                        <p>소피가 음식들을 한 입씩 냠냠 맛있게 베어 물 때마다,<br>
+                        소피 뒤 냉장고 문이 슬쩍 열리며 핑들이 빼꼼 고개를 내밀고 소피와 신나게 하이파이브를 했답니다! 🖐️✨</p>
+                    </div>
+                    <span class="page-number">p.43</span>
+                </div>
+                <div class="page page-right" style="background-image: url('images/p44.jpg');">
+                    <div class="page-bg-placeholder">[p.44 뒷표지]</div>
+                    <div class="text-overlay" style="text-align: center;">
+                        <h3>- THE END -</h3>
+                        <p style="margin-top: 10px;">소피와 함께하는 맛있는 야채 여행<br>끝까지 읽어주셔서 감사합니다! ❤️</p>
+                    </div>
+                    <span class="page-number">끝</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 하단 제어 버튼 및 페이지 표시 -->
+    <div class="controls">
+        <button class="btn" id="prevBtn" onclick="changeSpread(-1)" disabled>◀ 이전 책장</button>
+        <span class="page-num-indicator" id="pageIndicator">표지</span>
+        <button class="btn" id="nextBtn" onclick="changeSpread(1)">다음 책장 ▶</button>
+    </div>
+
+    <script>
+        let currentSpread = 0;
+        const spreads = document.querySelectorAll('.spread');
+        const totalSpreads = spreads.length;
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const pageIndicator = document.getElementById('pageIndicator');
+
+        function updateUI() {
+            if (currentSpread === 0) {
+               // 표지일 때는 body에 is-cover 클래스 추가 (상단/하단 숨김)
+                document.body.classList.add('is-cover');
+            } else {
+                // 본문일 때는 is-cover 클래스 제거 (상단/하단 다시 보임)
+                document.body.classList.remove('is-cover');
+                pageIndicator.innerText = `${currentSpread} / ${totalSpreads - 1} 펼침면`;
+            }
+            prevBtn.disabled = currentSpread === 0;
+            nextBtn.disabled = currentSpread === totalSpreads - 1;
+        }
+
+        function changeSpread(direction) {
+            const nextIndex = currentSpread + direction;
+            if (nextIndex < 0 || nextIndex >= totalSpreads) return;
+
+            // 현재 펼침면 숨기기
+            spreads[currentSpread].classList.remove('active');
+
+            // 목표 펼침면 즉시 표시
+            currentSpread = nextIndex;
+            spreads[currentSpread].classList.add('active');
+
+            updateUI();
+        }
+
+        /* 미니게임 이동 함수 */
+        function openGame(characterName) {
+            alert(`🎮 [${characterName}] 미니게임 창으로 이동합니다!`);
+        }
+
+        /* 문 밀기 게임 */
+        let pushPower = 0;
+        function pushDoor() {
+            if (pushPower < 100) {
+                pushPower += 25;
+                document.getElementById('doorProgress').style.width = pushPower + '%';
+                if (pushPower >= 100) {
+                    setTimeout(() => {
+                        alert("🎉 문이 활짝 열렸습니다! 다음 책장으로 이동해보세요!");
+                    }, 200);
+                }
+            }
+        }
+
+        // 초기 UI 설정
+        updateUI();
+    </script>
+</body>
+</html>
