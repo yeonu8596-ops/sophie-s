@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>버섯전골 재료 모으기</title>
+<style>
+*{box-sizing:border-box}
+html,body{
+  margin:0;width:100%;height:100%;overflow:hidden;
+  font-family:"Arial Rounded MT Bold","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+body{display:grid;place-items:center;background:#eef4e6;color:#684a35}
+#game{
+  width:min(100vw,760px);
+  height:min(100vh,1013px);
+  aspect-ratio:3/4;
+  position:relative;
+  overflow:hidden;
+  border-radius:34px;
+  border:5px solid rgba(255,250,240,.95);
+  box-shadow:0 18px 50px rgba(83,67,42,.16);
+  isolation:isolate;
+  touch-action:none;
+  user-select:none;
+  background:#e8f4df;
+}
+.scene{
+  position:absolute;inset:-1%;
+  width:102%;height:102%;
+  z-index:0;
+  filter:blur(.45px);
+  transform:scale(1.01);
+}
+#game:after{
+  content:"";
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:rgba(255,255,255,.045);
+}
+.hud{
+  position:absolute;z-index:30;
+  top:3.2%;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;justify-content:center;
+  min-width:210px;padding:11px 24px;
+  background:rgba(255,249,233,.96);
+  border:3px solid #dfc48e;
+  border-radius:32px;
+  box-shadow:0 5px 0 rgba(169,142,97,.12),0 8px 18px rgba(80,60,33,.10);
+  white-space:nowrap;
+  font-size:clamp(20px,3.8vw,28px);
+  font-weight:900;
+}
+.hud #score{color:#87a85d}
+.hint{
+  position:absolute;z-index:30;
+  bottom:2.6%;left:50%;transform:translateX(-50%);
+  max-width:90%;
+  padding:12px 24px;
+  background:rgba(255,249,233,.96);
+  border:2px solid #dcc498;
+  border-radius:24px;
+  box-shadow:0 4px 10px rgba(80,60,33,.09);
+  white-space:nowrap;
+  font-size:clamp(14px,2.8vw,19px);
+  font-weight:900;
+}
+#items{position:absolute;inset:0;z-index:10}
+.food{
+  position:absolute;left:0;top:0;
+  width:13%;height:9.5%;
+  filter:
+    drop-shadow(0 5px 4px rgba(71,55,34,.20))
+    drop-shadow(0 0 2px rgba(255,255,244,.85));
+  will-change:transform,left,top;
+}
+.food svg{width:100%;height:100%;overflow:visible}
+#pot{
+  position:absolute;z-index:15;
+  width:31%;height:17%;
+  left:34.5%;top:71%;
+  filter:drop-shadow(0 9px 5px rgba(58,55,32,.18));
+  will-change:left,transform;
+}
+#pot svg{width:100%;height:100%}
+#pot.pop{animation:potPop .34s cubic-bezier(.2,1.6,.4,1)}
+@keyframes potPop{
+  0%{transform:translateY(0) scale(1)}
+  45%{transform:translateY(-8px) scale(1.10)}
+  100%{transform:translateY(0) scale(1)}
+}
+.catch{
+  position:absolute;z-index:25;
+  color:#799658;
+  font-size:28px;font-weight:1000;
+  pointer-events:none;
+  animation:rise .65s ease-out forwards;
+}
+@keyframes rise{to{transform:translateY(-45px);opacity:0}}
+.success{
+  display:none;
+  position:absolute;inset:0;z-index:50;
+  place-items:center;
+  background:rgba(255,250,235,.14);
+  backdrop-filter:blur(1px);
+}
+.success.show{display:grid}
+.success-text{
+  position:relative;z-index:2;
+  font-size:clamp(78px,15vw,150px);
+  color:#dc9a43;
+  font-weight:1000;
+  -webkit-text-stroke:4px #fff8e9;
+  text-shadow:0 6px 0 #b87535,0 12px 25px rgba(86,56,28,.20);
+  animation:successPop .65s cubic-bezier(.18,1.5,.32,1) both;
+}
+@keyframes successPop{
+  0%{opacity:0;transform:scale(.2) rotate(-6deg)}
+  70%{opacity:1;transform:scale(1.16) rotate(2deg)}
+  100%{transform:scale(1)}
+}
+.spark{
+  position:absolute;z-index:1;
+  color:#edb64e;
+  font-size:clamp(26px,5vw,48px);
+  animation:twinkle 1s infinite alternate;
+  pointer-events:none;
+}
+@keyframes twinkle{
+  from{opacity:.3;transform:scale(.65) rotate(-15deg)}
+  to{opacity:1;transform:scale(1.25) rotate(18deg)}
+}
+@media(max-width:600px){
+  #game{width:100vw;height:100vh;border:0;border-radius:0}
+  .hint{font-size:13px;padding:10px 17px}
+}
+</style>
+</head>
+<body>
+<main id="game" aria-label="버섯전골 재료 모으기 게임">
+  <svg class="scene" viewBox="0 0 600 800" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#e3f1e9"/><stop offset="1" stop-color="#fff4d7"/></linearGradient><radialGradient id="leaf"><stop stop-color="#dce9b5"/><stop offset="1" stop-color="#b7d1a4"/></radialGradient><linearGradient id="land" x2="0" y2="1"><stop stop-color="#dbe7b6"/><stop offset="1" stop-color="#bace9b"/></linearGradient></defs><path fill="url(#sky)" d="M0 0h600v800H0z"/><circle cx="465" cy="120" r="55" fill="#fff4ce" opacity=".85"/><g fill="#fffdf1" opacity=".8"><ellipse cx="205" cy="130" rx="76" ry="21"/><ellipse cx="167" cy="116" rx="32" ry="25"/><ellipse cx="213" cy="110" rx="36" ry="29"/><ellipse cx="460" cy="260" rx="65" ry="17"/></g><path d="M0 593Q110 523 240 585T600 565V800H0" fill="#e1e9bf"/><path d="M0 655Q170 552 330 637T600 618V800H0" fill="url(#land)"/><path d="M245 800Q320 685 390 630Q285 669 140 800" fill="#eee5bf" opacity=".8"/><g stroke="#c0aa82" stroke-width="26" stroke-linecap="round"><path d="M30 575L40 164M563 610L562 173"/></g><g fill="url(#leaf)"><ellipse cx="4" cy="195" rx="103" ry="155"/><ellipse cx="40" cy="65" rx="108" ry="124"/><ellipse cx="594" cy="152" rx="102" ry="169"/><ellipse cx="559" cy="31" rx="102" ry="98"/></g><g fill="#acc78c"><ellipse cx="10" cy="690" rx="90" ry="45"/><ellipse cx="590" cy="706" rx="88" ry="55"/></g><g fill="#fff4d5"><circle cx="53" cy="666" r="8"/><circle cx="64" cy="676" r="8"/><circle cx="49" cy="680" r="8"/><circle cx="534" cy="649" r="8"/><circle cx="544" cy="660" r="8"/><circle cx="529" cy="663" r="8"/></g><g fill="#dca75f"><circle cx="55" cy="676" r="5"/><circle cx="535" cy="658" r="5"/></g><g transform="translate(480 732)"><path d="M0 0l-3 27q12 10 24 0L16 0" fill="#fff0d3"/><path d="M-18 4Q-18-33 9-31Q37-28 37 4Q11 15-18 4" fill="#dca582"/><circle cx="0" cy="-12" r="6" fill="#fff1d2"/><circle cx="22" cy="-8" r="5" fill="#fff1d2"/></g></svg>
+
+  <div class="hud">🍄 <span id="score">0</span>&nbsp;/&nbsp;10</div>
+  <div id="items"></div>
+
+  <div id="pot"><svg viewBox="0 0 180 135"><defs><linearGradient id="potg" x2="0" y2="1"><stop stop-color="#edbc87"/><stop offset="1" stop-color="#cb875b"/></linearGradient></defs><ellipse cx="90" cy="117" rx="64" ry="10" fill="#8d825e22"/><path d="M31 54Q-5 39 8 73L37 82M149 54Q185 39 172 73L143 82" fill="none" stroke="#b77c55" stroke-width="11"/><path d="M27 48L37 100Q90 130 143 100L153 48" fill="url(#potg)" stroke="#b98058" stroke-width="3"/><ellipse cx="90" cy="48" rx="64" ry="19" fill="#fff0cc" stroke="#c18d60" stroke-width="5"/><ellipse cx="90" cy="49" rx="53" ry="12" fill="#bd784d"/><path d="M48 72Q50 92 58 97" fill="none" stroke="#ffe3b7" stroke-width="7" stroke-linecap="round"/><circle cx="82" cy="88" r="3" fill="#82563b"/><circle cx="109" cy="88" r="3" fill="#82563b"/><path d="M88 97q8 7 15 0" fill="none" stroke="#82563b" stroke-width="3" stroke-linecap="round"/></svg></div>
+
+  <div class="hint">냄비를 움직여 버섯 10개를 모아주세요!</div>
+
+  <div class="success" id="success">
+    <span class="spark" style="left:22%;top:29%">✦</span>
+    <span class="spark" style="right:21%;top:27%;animation-delay:.2s">✦</span>
+    <span class="spark" style="left:27%;bottom:31%;animation-delay:.45s">✧</span>
+    <span class="spark" style="right:27%;bottom:33%;animation-delay:.65s">✧</span>
+    <div class="success-text">성공!</div>
+  </div>
+</main>
+
+<script>
+(()=>{
+'use strict';
+
+const game=document.getElementById('game');
+const items=document.getElementById('items');
+const pot=document.getElementById('pot');
+const scoreEl=document.getElementById('score');
+const success=document.getElementById('success');
+
+const drawings=[`<path d="M38 43l-5 30q15 12 31 0l-5-30" fill="#ffebc7" stroke="#b88b62" stroke-width="2"/><path d="M12 44Q14 9 49 9Q83 10 87 44Q51 60 12 44" fill="#bf7950" stroke="#a36343" stroke-width="2"/><ellipse cx="34" cy="27" rx="10" ry="7" fill="#ffe8c5"/><ellipse cx="64" cy="32" rx="8" ry="6" fill="#ffe8c5"/>`,`<path d="M17 31Q37 9 75 27Q93 43 74 65Q52 84 24 65Q7 54 17 31" fill="#f3ac9d" stroke="#b87867" stroke-width="3"/><path d="M26 36Q43 21 70 35Q81 45 66 59Q46 71 28 55Z" fill="#d97f76" stroke="#ffe6cd" stroke-width="5"/><path d="M35 33q-2 16 22 31M53 30q-8 17 18 20" fill="none" stroke="#f7c8b5" stroke-width="3"/>`,`<path d="M46 55Q6 48 18 18Q32-2 47 32Q53-5 72 13Q95 38 59 57" fill="#7fad64" stroke="#618d52" stroke-width="2"/><path d="M43 41Q42 64 32 75Q51 88 69 75Q56 62 57 40" fill="#e9edb7" stroke="#aec68a" stroke-width="2"/><path d="M50 73V35M45 43L30 23M57 40l12-16" stroke="#cbdca2" stroke-width="3" fill="none"/>`];
+
+let score=0;
+let spawned=0;
+let foods=[];
+let last=performance.now();
+let spawnIn=0;
+let x=.5;
+let raf=0;
+let done=false;
+
+function place(v){
+  x=Math.max(.155,Math.min(.845,v));
+  pot.style.left=(x*100-15.5)+'%';
+}
+
+function move(e){
+  if(done)return;
+  const r=game.getBoundingClientRect();
+  place((e.clientX-r.left)/r.width);
+}
+
+game.addEventListener('pointermove',move);
+game.addEventListener('pointerdown',move);
+
+function spawn(){
+  // 0=버섯, 1=고기, 2=청경채
+  // 버섯이 조금 더 자주 나오게 함.
+  const type=[0,0,1,0,0,2][spawned++%6];
+  const el=document.createElement('div');
+  el.className='food';
+  el.innerHTML='<svg viewBox="0 0 100 90">'+drawings[type]+'</svg>';
+
+  const f={
+    el,
+    type,
+    x:.12+Math.random()*.76,
+    y:-.10,
+    speed:.30+Math.random()*.055
+  };
+
+  foods.push(f);
+  items.append(el);
+}
+
+function catchEffect(){
+  pot.classList.remove('pop');
+  void pot.offsetWidth;
+  pot.classList.add('pop');
+
+  const c=document.createElement('span');
+  c.className='catch';
+  c.textContent='+1';
+  c.style.cssText=`left:${x*100}%;top:69%`;
+  items.append(c);
+  setTimeout(()=>c.remove(),700);
+}
+
+function finish(){
+  done=true;
+  cancelAnimationFrame(raf);
+  foods.forEach(f=>f.el.remove());
+  foods=[];
+  setTimeout(()=>success.classList.add('show'),250);
+}
+
+function frame(now){
+  if(done)return;
+
+  const dt=Math.min(.05,(now-last)/1000);
+  last=now;
+  spawnIn-=dt;
+
+  if(spawnIn<=0){
+    spawn();
+    spawnIn=.48;
+  }
+
+  for(let i=foods.length-1;i>=0;i--){
+    const f=foods[i];
+    const prev=f.y;
+    f.y+=f.speed*dt;
+
+    // 냄비 입구 높이에서 충돌 판정
+    if(prev<.775 && f.y>=.775 && Math.abs(f.x-x)<.145){
+      f.el.remove();
+      foods.splice(i,1);
+
+      // 고기/청경채는 들어가도 점수에 포함하지 않음.
+      if(f.type!==0)continue;
+
+      score++;
+      scoreEl.textContent=score;
+      catchEffect();
+
+      if(score>=10){
+        finish();
+        return;
+      }
+    }
+    else if(f.y>1.08){
+      f.el.remove();
+      foods.splice(i,1);
+    }
+    else{
+      f.el.style.left=(f.x*100-6.5)+'%';
+      f.el.style.top=(f.y*100-8)+'%';
+    }
+  }
+
+  raf=requestAnimationFrame(frame);
+}
+
+place(.5);
+raf=requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
